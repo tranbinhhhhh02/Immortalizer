@@ -1,3 +1,6 @@
+// Keep-alive (kiểu IPATweaksPlus) thay phần chạy nền của ImmortalizerJailed.
+// Giữ nguyên UI/skin của ImmortalizerJailed (FloatingButtonWindow).
+// Dylib này chỉ hook 2 method âm thanh của nó, KHÔNG thay UI.
 #import <UIKit/UIKit.h>
 #import <AVFoundation/AVFoundation.h>
 #import "SilentAudio.h"
@@ -69,8 +72,33 @@
 }
 @end
 
-// Thay phần chạy nền của Immortalizer, giữ nguyên skin
-%hook FloatingButtonWindow
-- (void)startPlayingSilentAudio { [[IPAKeepAlive shared] start]; }
-- (void)stopPlayingSilentAudio  { [[IPAKeepAlive shared] stop]; }
-%end
+// Hook bằng ObjC runtime (không cần Substrate nên chạy được trên IPA jailed)
+#import <objc/runtime.h>
+
+static BOOL gHooked = NO;
+
+static void hookIMJ(void) {
+    Class cls = objc_getClass("FloatingButtonWindow");
+    if (!cls) return;
+    Method m1 = class_getInstanceMethod(cls, NSSelectorFromString(@"startPlayingSilentAudio"));
+    Method m2 = class_getInstanceMethod(cls, NSSelectorFromString(@"stopPlayingSilentAudio"));
+    if (!m1 || !m2) return;
+    method_setImplementation(m1, imp_implementationWithBlock(^(id self_) { [[IPAKeepAlive shared] start]; }));
+    method_setImplementation(m2, imp_implementationWithBlock(^(id self_) { [[IPAKeepAlive shared] stop]; }));
+    gHooked = YES;
+}
+
+static void tryHook(int n) {
+    hookIMJ();
+    if (gHooked) return;
+    if (n >= 30) {
+        // Không tìm thấy class của Immortalizer: tự bật keep-alive luôn
+        [[IPAKeepAlive shared] start];
+        return;
+    }
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ tryHook(n + 1); });
+}
+
+__attribute__((constructor)) static void init_keepalive(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{ tryHook(0); });
+}
