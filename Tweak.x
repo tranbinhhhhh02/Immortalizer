@@ -1,5 +1,3 @@
-// Giữ nguyên UI/skin của ImmortalizerJailed (FloatingButtonWindow).
-// Dylib này chỉ hook 2 method âm thanh của nó, KHÔNG thay UI.
 #import <UIKit/UIKit.h>
 #import <AVFoundation/AVFoundation.h>
 #import "SilentAudio.h"
