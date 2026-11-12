@@ -14,8 +14,9 @@ jobs:
       - name: Build
         run: |
           export THEOS="$HOME/theos"
-          make
+          make FINALPACKAGE=1
       - uses: actions/upload-artifact@v4
         with:
           name: KeepAliveSwap-dylib
           path: .theos/obj/**/*.dylib
+          if-no-files-found: error
